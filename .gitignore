@@ -2,3 +2,5 @@
 /my_env
 *.xml
 *.iml
+db.sqlite3
+__pycache__
