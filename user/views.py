@@ -1,22 +1,17 @@
-from django.shortcuts import render
 from rest_framework.generics import GenericAPIView
 from rest_framework import generics, status, views, permissions
 from .serializers import UserSerializer, LoginSerializer
 from rest_framework.response import Response
 from rest_framework import status
-from django.conf import settings
-from django.core.mail import EmailMessage
-from django.core.mail import EmailMultiAlternatives
-
 from django.contrib import auth
 import random
 from django.template.loader import render_to_string, get_template
 import logging
 from .models import User
 from django.conf import settings
-from django.shortcuts import HttpResponse
 from .models import UserOTP
 from django.core.mail import send_mail
+from rest_framework.exceptions import ValidationError
 
 logger = logging.getLogger('django')
 
@@ -48,15 +43,19 @@ class RegisterView(GenericAPIView):
                 [user.email],
                 fail_silently=False
             )
+            logger.info("User is Created and OTP is sent to user")
             return Response({"Message": "OTP Sent to the user "}, status=status.HTTP_201_CREATED)
+        except ValidationError as e:
+            logger.error(e)
+            return Response({"Error": "Invalid Credentials"},status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
-            print(e)
-            return Response({"Error": "Failed to send otp"}, status=status.HTTP_400_BAD_REQUEST)
+            logger.error(e)
+            return Response({"Error": "Something Went Wrong"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class VerifyOTP(views.APIView):
     """
-            This api is for verification of email to this application
+            This api is for verification OTP to this application
            @param request: once the account verification link is clicked by user this will take that request
            @return: it will return the response of email activation
      """
@@ -81,11 +80,15 @@ class LoginView(GenericAPIView):
     serializer_class = LoginSerializer
 
     def post(self, request):
-        data = request.data
-        username = data.get('username', '')
-        password = data.get('password', '')
-        user = User.objects.get(username=username, password=password)
-        # user = auth.authenticate(username=username, password=password)
-        if user:
-            return Response({'response': f'You are logged in successfully', 'username': username})
-        return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            data = request.data
+            username = data.get('username', '')
+            password = data.get('password', '')
+            user = User.objects.get(username=username, password=password)
+            # user = auth.authenticate(username=username, password=password)
+            if user:
+                return Response({'Message': f'You are logged in successfully', 'username': username})
+            return Response({'Error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            logger.error(e)
+            return Response({'error': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)

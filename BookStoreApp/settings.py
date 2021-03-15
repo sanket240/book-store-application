@@ -38,7 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'user',
-    'rest_framework'
+    'rest_framework',
+    'books'
 ]
 
 MIDDLEWARE = [
@@ -130,3 +131,31 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_HOST_USER = 'sanketdulange24@gmail.com'
 EMAIL_HOST_PASSWORD = 'sanket@123'
+
+LOGGING = {
+    'version': 1,
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'DEBUG'
+        }
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': './logs/app.log',
+            'formatter': 'simple',
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'DEBUG'
+        },
+    },
+    'formatters': {
+        'simple': {
+            'format': '{levelname} {asctime} {module} {message} {lineno}',
+            'style': '{'
+        }
+    }
+}

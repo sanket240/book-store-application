@@ -4,3 +4,6 @@
 *.iml
 db.sqlite3
 __pycache__
+logs
+books/migrations
+*.jpg
