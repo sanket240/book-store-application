@@ -10,13 +10,18 @@ class Products(models.Model):
     quantity = models.IntegerField()
     price = models.IntegerField()
     description = models.CharField(max_length=2000)
-    #date_added = models.DateTimeField(auto_now_add=True)
+
+    # date_added = models.DateTimeField(auto_now_add=True)
 
     def get_title(self):
         return self.title
 
 
-
 class Cart(models.Model):
     owner = models.OneToOneField(to=User, on_delete=models.CASCADE)
     products = models.ManyToManyField(to=Products)
+
+
+#class Order(models.Model):
+  #address = models.CharField(max_length=100)
+    #date_added = models.DateTimeField(auto_now_add=True)

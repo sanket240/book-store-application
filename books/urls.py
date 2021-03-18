@@ -4,12 +4,9 @@ from .views import ProductCreateView, ProductOperationsView, AddToCartView, Orde
 
 urlpatterns = [
     path('', ProductCreateView.as_view(), name='create'),
-    path('<int:id>', ProductOperationsView.as_view(), name="notes"),
+    path('<int:id>', ProductOperationsView.as_view(), name="product-operation"),
     path('cart/<int:id>', AddToCartView.as_view(), name="cart"),
     path('order/low', OrderAscendingAPIView.as_view(), name="order-low"),
     path('order/high', OrderDescendingAPIView.as_view(), name="order-high"),
-    path('search', OrderDescendingAPIView.as_view(), name="order-high")
-
-    # path('otp-verify/', VerifyOTP.as_view(), name='otp-verify'),
-    # path('login', LoginView.as_view(), name='login'),
+    path('search/', SearchAPIView.as_view(), name="search")
 ]
