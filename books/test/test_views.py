@@ -74,11 +74,11 @@ class ProductAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_product_with_valid_product_id(self):
-        response = self.client.put(reverse('product-operation', kwargs={'id': 52}))
+        response = self.client.delete(reverse('product-operation', kwargs={'id': 52}))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_delete_product_with_invalid_product_id(self):
-        response = self.client.put(reverse('product-operation', kwargs={'id': 60}))
+        response = self.client.delete(reverse('product-operation', kwargs={'id': 60}))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_all_products_from_high_to_low_price(self):
