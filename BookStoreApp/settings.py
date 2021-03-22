@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'user',
     'rest_framework',
     'books',
-    'drf_yasg'
+    'drf_yasg',
+    'django_celery_beat'
 ]
 
 MIDDLEWARE = [
@@ -172,3 +173,14 @@ LOGGING = {
 }
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
+CELERY_BROKER_URL = 'redis://:sanket@localhost:6379'
+CELERY_RESULT_BACKEND = 'redis://:sanket@localhost:6379'
+
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_ACCEPT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_IMPORTS = (
+    'books.utils'
+)
+CELERY_TASK_ALWAYS_EAGER = True
+

@@ -15,6 +15,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import HttpResponse
+from user.utils import Util
 
 logger = logging.getLogger('django')
 
@@ -104,15 +105,19 @@ class AddToCartView(CreateAPIView):
     lookup_field = "id"
 
     def post(self, request, id):
+        quantity = request.data.get('quantity')
         try:
             owner = User.objects.get(id=self.request.user.id)
             product = Products.objects.get(id=id)
             cart = Cart.objects.get(owner=owner)
             cart.products.add(product)
+            cart.quantity = quantity
             cart.save()
+            return Response({'Message': 'Added To cart'}, status=status.HTTP_201_CREATED)
         except Cart.DoesNotExist:
             cart = Cart.objects.create(owner=owner)
             cart.products.add(product)
+            cart.quantity = quantity
             cart.save()
             return Response({'Message': 'Added To cart'}, status=status.HTTP_201_CREATED)
         except ValidationError as e:
@@ -128,7 +133,6 @@ class SearchAPIView(ListAPIView):
     pagination_class = PageNumberPagination
 
     def get_queryset(self):
-        """ Get all notes of particular User """
         try:
             search_key = self.kwargs['item']
             logger.info("Data Incoming from the database")
@@ -140,23 +144,22 @@ class SearchAPIView(ListAPIView):
             logger.error(e)
 
 
-class DisplayByOrder(ListAPIView):
+class DisplayBySortedProducts(ListAPIView):
     serializer_class = ProductSerializer
     pagination_class = PageNumberPagination
+
+    def get_value(self, value):
+        switcher = {
+            'price-asc': 'price', 'price-desc': '-price', 'author-asc': 'author', 'author-desc': '-author',
+            'title-asc': 'title', 'title-desc': '-title', 'quantity-asc': 'quantity', 'quantity-desc': '-quantity'
+        }
+        return switcher.get(value, "title")
 
     def get_queryset(self):
         try:
             type = self.kwargs['type']
-            if type == 'price-low':
-                return Products.objects.all().order_by('price')
-            elif type == 'price-high':
-                return Products.objects.all().order_by('-price')
-            elif type == 'author':
-                return Products.objects.all().order_by('author')
-            elif type == 'title':
-                return Products.objects.all().order_by('title')
-            elif type == 'quantity':
-                return Products.objects.all().order_by('quantity')
+            value = self.get_value(type)
+            return Products.objects.all().order_by(value)
         except OperationalError as e:
             logger.error(e, exc_info=True)
             return Response({'Message': 'Failed to connect with the database'}, status=status.HTTP_400_BAD_REQUEST)
@@ -170,27 +173,39 @@ class PlaceOrderAPIView(GenericAPIView):
 
     def post(self, request):
         total_price = 0
-        total_quantity = 0
-        address = request.data.get('address')
-        phone = request.data.get('phone')
-        owner = User.objects.get(id=self.request.user.id)
+        total_items = 0
         try:
-            cart = Cart.objects.filter(owner=owner)
-            order = Order.objects.create(owner=owner, address=address, phone=phone)
+            owner = User.objects.get(id=self.request.user.id)
+            order = Order.objects.get(owner=owner)
+        except Order.DoesNotExist:
+            order = Order.objects.create(owner=owner)
+        try:
+            address = request.data.get('address')
+            phone = request.data.get('phone')
+            cart = Cart.objects.filter(owner=self.request.user)
+            owner = User.objects.get(id=self.request.user.id)
             if cart:
                 cart_list = cart.values('products')
                 for items in range(len(cart_list)):
                     product_id = cart_list[items]['products']
                     product = Products.objects.get(id=product_id)
+                    cart_object = Cart.objects.get(products=product)
                     order.products.add(product)
                     order.save()
-                    total_price = total_price + product.price
-                    total_quantity = total_quantity + 1
-                print(total_price)
-                print(total_price)
+                    total_price = total_price + (product.price * cart_object.quantity)
+                    total_items = total_items + 1
                 order.total_price = total_price
-                order.total_quantity = total_quantity
+                order.total_items = total_items
+                order.address = address
+                order.phone = phone
                 order.save()
+                email_body = 'Hi ' + str(owner.username) + \
+                             ' your order with id:' + str(
+                    order.id) + ' has been placed successfully' + '\n Total items are:' + str(
+                    total_items) + '\n Total price is:' + str(total_price)
+                data = {'email_body': email_body, 'to_email': owner.email,
+                        'email_subject': 'Order Delivered'}
+                Util.send_email(data)
                 return Response({'Message': 'Product added successully'}, status=status.HTTP_200_OK)
         except ValidationError as e:
             logger.exception(e, exc_info=True)
