@@ -1,6 +1,6 @@
 # Create your views here.
 from django.shortcuts import get_object_or_404
-from .serializers import ProductSerializer
+from .serializers import ProductSerializer ,WishListSerializer
 from .models import Products, Order
 from rest_framework.response import Response
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, DestroyAPIView, RetrieveAPIView, \
@@ -10,7 +10,7 @@ from rest_framework import permissions, status, views
 import logging
 from psycopg2 import OperationalError
 from rest_framework.exceptions import ValidationError
-from .models import Cart
+from .models import Cart, WishList
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist
@@ -213,3 +213,45 @@ class PlaceOrderAPIView(GenericAPIView):
         except Exception as e:
             logger.exception(e, exc_info=True)
             return Response({'Message': 'Failed to add to cart'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AddToWishList(ListCreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = WishListSerializer
+    pagination_class = PageNumberPagination
+    lookup_field = "id"
+
+    def post(self, request, id):
+        try:
+            owner = User.objects.get(id=self.request.user.id)
+            wish_list = WishList.objects.get(owner=owner)
+        except WishList.DoesNotExist:
+            wish_list = WishList.objects.create(owner=owner)
+        try:
+            product = Products.objects.get(id=id)
+            wish_list.products.add(product)
+            wish_list.save()
+            return Response({'Message': 'Added To Wish List'}, status=status.HTTP_201_CREATED)
+        except ValidationError as e:
+            logger.exception(e)
+            return Response({'Message': 'Invalid Data'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception(e)
+            return Response({'Message': 'Failed to add to wish list'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_queryset(self):
+        try:
+            owner = User.objects.get(id=self.request.user.id)
+            return WishList.objects.filter(owner=owner)
+        except OperationalError as e:
+            logger.error(e, exc_info=True)
+            return Response({'Message': 'Failed to connect with the database'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            return Response({'Message': 'Error Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+

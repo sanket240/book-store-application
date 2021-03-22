@@ -32,3 +32,8 @@ class Order(models.Model):
     total_items = models.IntegerField(null=True)
     created_date = models.DateTimeField(auto_now_add=True)
     is_delivered = models.BooleanField(default=False)
+
+
+class WishList(models.Model):
+    owner = models.OneToOneField(to=User, on_delete=models.CASCADE)
+    products = models.ManyToManyField(to=Products)
