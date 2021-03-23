@@ -1,7 +1,9 @@
 from django.test import TestCase, Client
+from rest_framework.test import APIClient
 from django.urls import reverse
 from rest_framework import status
 import json
+from books.tokens import Token
 from rest_framework.test import APITestCase
 
 CONTENT_TYPE = 'application/json'
@@ -33,20 +35,6 @@ class ProductAPITest(APITestCase):
             "quantity": 20,
             "price": 650,
             "description": "The final installment in the epic series completes the quest of Roland Deschainwho works to outmaneuver the increasingly desperate acts of his adversaries and confronts losses within his circle of companions.'"
-        }
-
-        self.search_products_valid_payload = {
-            "value": "The"
-        }
-
-        self.search_products_invalid_payload = {
-            "key": "The"
-        }
-        self.valid_login_credentials = {
-            "username": "sanket12345", "password": "sanket00002", "email": "ss@gmail.com", "phone": "8888881800"
-        }
-        self.invalid_login_credentials = {
-            "username": "sanke", "password": "sanket000002", "email": "ssssdv@gmail.com", "phone": "8888881800"
         }
 
     def test_create_products_with_valid_payload(self):
@@ -81,40 +69,55 @@ class ProductAPITest(APITestCase):
         response = self.client.delete(reverse('product-operation', kwargs={'id': 60}))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_get_all_products_from_high_to_low_price(self):
-        response = self.client.get(reverse('order-high'))
+    def test_search_notes(self):
+        client = APIClient()
+        response = client.get('api/books/search/The')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_get_all_products_from_low_to_high_price(self):
-        response = self.client.get(reverse('order-low'))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_search_notes_valid_payload(self):
-        response = self.client.get(reverse('search'), data=json.dumps(self.search_products_valid_payload),
-                                   content_type=CONTENT_TYPE)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_search_notes_invalid_payload(self):
-        response = self.client.post(reverse('search'), data=json.dumps(self.search_products_invalid_payload),
-                                    content_type=CONTENT_TYPE)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def login_method(self, credentials):
-        login = self.client.post(reverse('login'), data=json.dumps(credentials), content_type=CONTENT_TYPE)
-        token = login.get('Authorization')
-        auth_headers = {
-            'HTTP_AUTHORIZATION': token,
-        }
-        return auth_headers
-
-    # Not Working
     def test_add_to_cart_valid_payload(self):
-        auth_headers = self.login_method(self.valid_login_credentials)
-        response = self.client.post(reverse('cart'), **auth_headers, kwargs={'id': 22})
+        client = APIClient()
+        token = Token.get_token('sanket1')
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        response = client.post('api/books/cart/7')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    # Not Working
     def test_add_to_cart_invalid_payload(self):
-        auth_headers = self.login_method(self.invalid_login_credentials)
-        response = self.client.post(reverse('cart'), **auth_headers, kwargs={'id': 22})
+        client = APIClient()
+        token = Token.get_token('sanket22')
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        response = client.post('api/books/cart/7')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_place_order_api_valid_palyload(self):
+        client = APIClient()
+        token = Token.get_token('sanket1')
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        response = client.post('api/books/place-order/', {
+            "address": "176,Rohini Nagar-3,Jule Solapur,Solapur",
+            "phone": "9422484996"
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_place_order_api_invalid_palyload(self):
+        client = APIClient()
+        token = Token.get_token('sanket120')
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        response = client.post('api/books/place-order/', {
+            "address": "176,Rohini Nagar-3,Jule Solapur,Solapur",
+            "phone": "9422484996"
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_add_to_wish_list_valid_payload(self):
+        client = APIClient()
+        token = Token.get_token('sanket1')
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        response = client.post('api/books/wish/7')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_add_to_wish_list_invalid_payload(self):
+        client = APIClient()
+        token = Token.get_token('sanket1')
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        response = client.post('api/books/wish/7')
+        self.assertEqual(response.status_code, status.status.HTTP_403_FORBIDDEN)

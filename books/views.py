@@ -1,6 +1,6 @@
 # Create your views here.
 from django.shortcuts import get_object_or_404
-from .serializers import ProductSerializer ,WishListSerializer
+from .serializers import ProductSerializer, WishListSerializer
 from .models import Products, Order
 from rest_framework.response import Response
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, DestroyAPIView, RetrieveAPIView, \
@@ -101,6 +101,11 @@ class ProductOperationsView(RetrieveUpdateDestroyAPIView):
 
 
 class AddToCartView(CreateAPIView):
+    """
+            This api is for adding products into cart
+            @param id: id of the product
+            @return: response of added product into cart
+    """
     permission_classes = (permissions.IsAuthenticated,)
     lookup_field = "id"
 
@@ -133,6 +138,11 @@ class SearchAPIView(ListAPIView):
     pagination_class = PageNumberPagination
 
     def get_queryset(self):
+        """
+                This api is for searching products
+                @param search_key: value to be searched
+                @return: response of search key
+        """
         try:
             search_key = self.kwargs['item']
             logger.info("Data Incoming from the database")
@@ -156,6 +166,11 @@ class DisplayBySortedProducts(ListAPIView):
         return switcher.get(value, "title")
 
     def get_queryset(self):
+        """
+                This api is for sorting the products based on params
+                @param type: type of parameter to sort
+                @return: response of sorted products
+        """
         try:
             type = self.kwargs['type']
             value = self.get_value(type)
@@ -171,15 +186,26 @@ class DisplayBySortedProducts(ListAPIView):
 class PlaceOrderAPIView(GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
+    def get_order_object(self, owner):
+        try:
+            owner = User.objects.get(id=owner.id)
+            order = Order.objects.get(owner=owner)
+            return order
+
+        except Order.DoesNotExist:
+            order = Order.objects.create(owner=owner)
+            return order
+
     def post(self, request):
+        """
+                    This api is for placing the order from the cart
+                    @return: response of ordered products
+        """
         total_price = 0
         total_items = 0
         try:
-            owner = User.objects.get(id=self.request.user.id)
-            order = Order.objects.get(owner=owner)
-        except Order.DoesNotExist:
-            order = Order.objects.create(owner=owner)
-        try:
+            owner = self.request.user
+            order = self.get_order_object(owner)
             address = request.data.get('address')
             phone = request.data.get('phone')
             cart = Cart.objects.filter(owner=self.request.user)
@@ -221,13 +247,24 @@ class AddToWishList(ListCreateAPIView):
     pagination_class = PageNumberPagination
     lookup_field = "id"
 
-    def post(self, request, id):
+    def get_wish_list_object(self, owner):
         try:
-            owner = User.objects.get(id=self.request.user.id)
+            owner = User.objects.get(id=owner.id)
             wish_list = WishList.objects.get(owner=owner)
+            return wish_list
         except WishList.DoesNotExist:
             wish_list = WishList.objects.create(owner=owner)
+            return wish_list
+
+    def post(self, request, id):
+        """
+                    This api is for adding the products into wish list
+                    @param id: id of product
+                    @return: response of wish list products
+        """
         try:
+            owner = self.request.user
+            wish_list = self.get_wish_object(owner)
             product = Products.objects.get(id=id)
             wish_list.products.add(product)
             wish_list.save()
@@ -240,6 +277,10 @@ class AddToWishList(ListCreateAPIView):
             return Response({'Message': 'Failed to add to wish list'}, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
+        """
+                    This api is for getting the products from wish list of particular user
+                    @return: response of wish list products
+        """
         try:
             owner = User.objects.get(id=self.request.user.id)
             return WishList.objects.filter(owner=owner)
@@ -249,9 +290,3 @@ class AddToWishList(ListCreateAPIView):
         except Exception as e:
             logger.error(e, exc_info=True)
             return Response({'Message': 'Error Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-
-
