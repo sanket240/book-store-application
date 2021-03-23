@@ -117,7 +117,7 @@ class ProductAPITest(APITestCase):
 
     def test_add_to_wish_list_invalid_payload(self):
         client = APIClient()
-        token = Token.get_token('sanket1')
+        token = Token.get_token('sanket12')
         client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = client.post('api/books/wish/7')
         self.assertEqual(response.status_code, status.status.HTTP_403_FORBIDDEN)
