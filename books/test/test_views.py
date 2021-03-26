@@ -3,8 +3,10 @@ from rest_framework.test import APIClient
 from django.urls import reverse
 from rest_framework import status
 import json
-from books.tokens import Token
 from rest_framework.test import APITestCase
+from user.models import User
+from django.conf import settings
+import jwt
 
 CONTENT_TYPE = 'application/json'
 
@@ -35,6 +37,9 @@ class ProductAPITest(APITestCase):
             "quantity": 20,
             "price": 650,
             "description": "The final installment in the epic series completes the quest of Roland Deschainwho works to outmaneuver the increasingly desperate acts of his adversaries and confronts losses within his circle of companions.'"
+        }
+        self.login = {
+            "username": "sankeyyy22", "password": "sanket000002"
         }
 
     def test_create_products_with_valid_payload(self):
@@ -76,21 +81,23 @@ class ProductAPITest(APITestCase):
 
     def test_add_to_cart_valid_payload(self):
         client = APIClient()
-        token = Token.get_token('sanket1')
+        token = self.get_token('sanket', 'sanket0002')
         client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = client.post('api/books/cart/7')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_add_to_cart_invalid_payload(self):
         client = APIClient()
-        token = Token.get_token('sanket22')
+        # token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbmtleXl5MjIifQ.U1pm5GpM0GteJdlHUFMXVYYpTJNIjv6pXWwU_hXQP0A"
+        token = self.get_token('sanket', 'sanket0002')
         client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = client.post('api/books/cart/7')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_place_order_api_valid_palyload(self):
         client = APIClient()
-        token = Token.get_token('sanket1')
+        # token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbmtleXl5MjIifQ.U1pm5GpM0GteJdlHUFMXVYYpTJNIjv6pXWwU_hXQP0A"
+        token = self.get_token('sanket', 'sanket0002')
         client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = client.post('api/books/place-order/', {
             "address": "176,Rohini Nagar-3,Jule Solapur,Solapur",
@@ -98,26 +105,58 @@ class ProductAPITest(APITestCase):
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_place_order_api_invalid_palyload(self):
+    def test_place_order_api_invalid_credentials(self):
         client = APIClient()
-        token = Token.get_token('sanket120')
+        # token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbmtleXl5MjIifQ.U1pm5GpM0GteJdlHUFMXVYYpTJNIjv6pXWwU_hXQP0A"
+        token = self.get_token('sanket111', 'sanket0002')
         client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = client.post('api/books/place-order/', {
             "address": "176,Rohini Nagar-3,Jule Solapur,Solapur",
-            "phone": "9422484996"
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_place_order_api_invalid_payload(self):
+        client = APIClient()
+        # token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbmtleXl5MjIifQ.U1pm5GpM0GteJdlHUFMXVYYpTJNIjv6pXWwU_hXQP0A"
+        token = self.get_token('sanket', 'sanket0002')
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        response = client.post('api/books/place-order/', {
+            "address": "176,Rohini Nagar-3,Jule Solapur,Solapur",
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_add_to_wish_list_valid_payload(self):
         client = APIClient()
-        token = Token.get_token('sanket1')
+        # token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbmtleXl5MjIifQ.U1pm5GpM0GteJdlHUFMXVYYpTJNIjv6pXWwU_hXQP0A"
+        token = self.get_token('sanket', 'sanket0002')
         client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = client.post('api/books/wish/7')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_add_to_wish_list_invalid_payload(self):
+    def test_add_to_wish_list_invalid_credentials(self):
         client = APIClient()
-        token = Token.get_token('sanket12')
+        # token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbmtleXl5MjIifQ.U1pm5GpM0GteJdlHUFMXVYYpTJNIjv6pXWwU_hXQP0A"
+        token = self.get_token('sanket112', 'sanket0002')
         client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         response = client.post('api/books/wish/7')
-        self.assertEqual(response.status_code, status.status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_add_to_wish_list_invalid_payload(self):
+        client = APIClient()
+        # token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InNhbmtleXl5MjIifQ.U1pm5GpM0GteJdlHUFMXVYYpTJNIjv6pXWwU_hXQP0A"
+        token = self.get_token('sanket', 'sanket0002')
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token)
+        response = client.post('api/books/wish/70')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def get_token(self, username, password):
+        user = User.objects.get(username=username, password=password)
+        if user:
+            auth_token = jwt.encode(
+                {'username': user.username}, settings.SECRET_KEY, algorithm='HS256')
+
+            # serializer = UserSerializer(user)
+
+            # data = {'user': serializer.data, 'token': auth_token}
+
+            return auth_token

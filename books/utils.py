@@ -35,6 +35,7 @@ class Util:
                                 'email_subject': 'Order Delivered'}
                         Util.send_email(data)
                         order_obj.is_delivered = True
+                        order_obj.save()
                         logger.info("Email sent successfully using celery")
 
         except OperationalError as e:

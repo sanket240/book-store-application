@@ -13,8 +13,6 @@ from rest_framework.exceptions import ValidationError
 from .models import Cart, WishList
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
-from django.core.exceptions import ObjectDoesNotExist
-from django.shortcuts import HttpResponse
 from user.utils import Util
 
 logger = logging.getLogger('django')
@@ -32,6 +30,7 @@ class ProductCreateView(ListCreateAPIView):
         """
         try:
             serializer.save()
+            logger.info("Product Created Succesfully")
             return Response({'Message': 'Product Created Successfully'}, status=status.HTTP_200_OK)
         except OperationalError as e:
             logger.error(e)
@@ -45,6 +44,7 @@ class ProductCreateView(ListCreateAPIView):
 
     def get_queryset(self):
         try:
+            logger.info("Fetching from database")
             return Products.objects.all()
         except OperationalError as e:
             logger.error(e)
@@ -88,6 +88,7 @@ class ProductOperationsView(RetrieveUpdateDestroyAPIView):
         """
         try:
             serializer.save()
+            logger.info("Product Updated Succesfully")
             return Response({'Message': 'Note updated successfully'}, status=status.HTTP_200_OK)
         except OperationalError as e:
             logger.error(e)
@@ -114,16 +115,11 @@ class AddToCartView(CreateAPIView):
         try:
             owner = User.objects.get(id=self.request.user.id)
             product = Products.objects.get(id=id)
-            cart = Cart.objects.get(owner=owner)
+            cart, created = Cart.objects.get_or_create(owner=owner)
             cart.products.add(product)
             cart.quantity = quantity
             cart.save()
-            return Response({'Message': 'Added To cart'}, status=status.HTTP_201_CREATED)
-        except Cart.DoesNotExist:
-            cart = Cart.objects.create(owner=owner)
-            cart.products.add(product)
-            cart.quantity = quantity
-            cart.save()
+            logger.info("Added To Cart Successfully")
             return Response({'Message': 'Added To cart'}, status=status.HTTP_201_CREATED)
         except ValidationError as e:
             logger.exception(e)
@@ -186,16 +182,6 @@ class DisplayBySortedProducts(ListAPIView):
 class PlaceOrderAPIView(GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
-    def get_order_object(self, owner):
-        try:
-            owner = User.objects.get(id=owner.id)
-            order = Order.objects.get(owner=owner)
-            return order
-
-        except Order.DoesNotExist:
-            order = Order.objects.create(owner=owner)
-            return order
-
     def post(self, request):
         """
                     This api is for placing the order from the cart
@@ -205,7 +191,7 @@ class PlaceOrderAPIView(GenericAPIView):
         total_items = 0
         try:
             owner = self.request.user
-            order = self.get_order_object(owner)
+            order, created = Order.objects.get_or_create(owner=owner)
             address = request.data.get('address')
             phone = request.data.get('phone')
             cart = Cart.objects.filter(owner=self.request.user)
@@ -220,6 +206,7 @@ class PlaceOrderAPIView(GenericAPIView):
                     order.save()
                     total_price = total_price + (product.price * cart_object.quantity)
                     total_items = total_items + 1
+                    cart_object.delete()
                 order.total_price = total_price
                 order.total_items = total_items
                 order.address = address
@@ -232,13 +219,14 @@ class PlaceOrderAPIView(GenericAPIView):
                 data = {'email_body': email_body, 'to_email': owner.email,
                         'email_subject': 'Order Delivered'}
                 Util.send_email(data)
-                return Response({'Message': 'Product added successully'}, status=status.HTTP_200_OK)
+                logger.info("Order Placed Successully")
+                return Response({'Message': 'Order Placed successully'}, status=status.HTTP_200_OK)
         except ValidationError as e:
             logger.exception(e, exc_info=True)
             return Response({'Message': 'Invalid Data'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception(e, exc_info=True)
-            return Response({'Message': 'Failed to add to cart'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'Message': 'Failed to place order'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AddToWishList(ListCreateAPIView):
@@ -246,15 +234,6 @@ class AddToWishList(ListCreateAPIView):
     serializer_class = WishListSerializer
     pagination_class = PageNumberPagination
     lookup_field = "id"
-
-    def get_wish_list_object(self, owner):
-        try:
-            owner = User.objects.get(id=owner.id)
-            wish_list = WishList.objects.get(owner=owner)
-            return wish_list
-        except WishList.DoesNotExist:
-            wish_list = WishList.objects.create(owner=owner)
-            return wish_list
 
     def post(self, request, id):
         """
@@ -264,10 +243,11 @@ class AddToWishList(ListCreateAPIView):
         """
         try:
             owner = self.request.user
-            wish_list = self.get_wish_object(owner)
+            wish_list, created = WishList.objects.get_or_create(owner=owner)
             product = Products.objects.get(id=id)
             wish_list.products.add(product)
             wish_list.save()
+            logger.info("Product Added to wishlist")
             return Response({'Message': 'Added To Wish List'}, status=status.HTTP_201_CREATED)
         except ValidationError as e:
             logger.exception(e)

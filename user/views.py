@@ -48,10 +48,10 @@ class RegisterView(GenericAPIView):
             logger.info("User is Created and OTP is sent to user")
             return Response({"Message": "OTP Sent to the user "}, status=status.HTTP_201_CREATED)
         except ValidationError as e:
-            logger.exception(e)
+            logger.exception(e,exc_info=True)
             return Response({"Error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
-            logger.exception(e)
+            logger.exception(e,exc_info=True)
             return Response({"Error": "Something Went Wrong"}, status=status.HTTP_400_BAD_REQUEST)
 
 
