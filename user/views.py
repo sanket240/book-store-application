@@ -3,14 +3,12 @@ from rest_framework import generics, status, views, permissions
 from .serializers import UserSerializer, LoginSerializer
 from rest_framework.response import Response
 from rest_framework import status
-from django.contrib import auth
 import random
 import redis
 import logging
 import jwt
 from .models import User
 from django.conf import settings
-from .models import UserOTP
 from django.core.mail import send_mail
 from rest_framework.exceptions import ValidationError
 
@@ -18,7 +16,6 @@ redis_instance = redis.StrictRedis(host=settings.REDIS_HOST, port=settings.REDIS
 logger = logging.getLogger('django')
 
 
-# Create your views here.
 class RegisterView(GenericAPIView):
     """
                This api is for registration of new user
@@ -48,10 +45,10 @@ class RegisterView(GenericAPIView):
             logger.info("User is Created and OTP is sent to user")
             return Response({"Message": "OTP Sent to the user "}, status=status.HTTP_201_CREATED)
         except ValidationError as e:
-            logger.exception(e,exc_info=True)
+            logger.exception(e, exc_info=True)
             return Response({"Error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
-            logger.exception(e,exc_info=True)
+            logger.exception(e, exc_info=True)
             return Response({"Error": "Something Went Wrong"}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -83,6 +80,11 @@ class VerifyOTP(views.APIView):
 
 
 class LoginView(GenericAPIView):
+    """
+            This API is used for authentication of the user
+            @param request: user credential like username and password
+            @return: it will return the response of successful login
+    """
     serializer_class = LoginSerializer
 
     def post(self, request):
@@ -96,8 +98,9 @@ class LoginView(GenericAPIView):
             if user:
                 auth_token = jwt.encode(
                     {'username': user.username}, settings.SECRET_KEY, algorithm='HS256')
+                redis_instance.set(user.id, auth_token)
 
-                #serializer = UserSerializer(user)
+                # serializer = UserSerializer(user)
 
                 # data = {'user': serializer.data, 'token': auth_token}
 
@@ -111,3 +114,35 @@ class LoginView(GenericAPIView):
         except Exception as e:
             logger.error(e)
             return Response({'error': 'Something Went Wrong'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LogoutAPIView(views.APIView):
+    """
+               This API is used for logging out the logged in user
+               @param request: token generated during login
+               @return: it will return the response of successful logout
+    """
+
+    def post(self, request):
+        token = request.META.get("HTTP_TOKEN")
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, ['HS256'])
+            print(payload)
+            user = User.objects.get(id=payload['id'])
+            value = redis_instance.get(user.id)
+            if not value:
+                return Response("Failed to logout", status=status.HTTP_400_BAD_REQUEST)
+            else:
+                result = redis_instance.delete(user.id)
+                if result == 1:
+                    return Response("Successully logged out", status=status.HTTP_200_OK)
+                else:
+                    return Response("Failed to logout please re login", status=status.HTTP_400_BAD_REQUEST)
+        except jwt.ExpiredSignatureError as identifier:
+            logger.error(identifier)
+            return Response({'error': 'Activation Expired'}, status=status.HTTP_400_BAD_REQUEST)
+        except jwt.exceptions.DecodeError as identifier:
+            logger.error(identifier)
+            return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(e)

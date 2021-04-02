@@ -3,7 +3,8 @@
 *.xml
 *.iml
 db.sqlite3
-__pycache__
 logs
+__pycache__
 books/migrations
 *.jpg
+.env

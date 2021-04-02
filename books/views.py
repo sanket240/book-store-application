@@ -1,5 +1,3 @@
-# Create your views here.
-from django.shortcuts import get_object_or_404
 from .serializers import ProductSerializer, WishListSerializer
 from .models import Products, Order
 from rest_framework.response import Response
